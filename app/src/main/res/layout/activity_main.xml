@@ -1,0 +1,63 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:orientation="vertical"
+    android:gravity="center"
+    android:padding="24dp"
+    android:background="#0E0E0E">
+
+    <TextView
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="CRISIS LAG SPAM"
+        android:textColor="#FFD54F"
+        android:textSize="26sp"
+        android:textStyle="bold"/>
+
+    <TextView
+        android:id="@+id/statusText"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="12dp"
+        android:text="Status: Not ready"
+        android:textColor="#FFFFFF"
+        android:textSize="14sp"/>
+
+    <Button
+        android:id="@+id/btnOverlayPerm"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="32dp"
+        android:text="1. Grant Overlay Permission"/>
+
+    <Button
+        android:id="@+id/btnVpnPerm"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="12dp"
+        android:text="2. Grant VPN Permission"/>
+
+    <Button
+        android:id="@+id/btnShowOverlay"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="12dp"
+        android:text="3. Show Mod Menu Overlay"/>
+
+    <Button
+        android:id="@+id/btnLaunchGame"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="12dp"
+        android:text="4. Launch Crisis Action SEA"/>
+
+    <TextView
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="24dp"
+        android:text="Toggle LAG SPAM di overlay untuk aktifkan efek."
+        android:textColor="#B0B0B0"
+        android:textSize="12sp"/>
+
+</LinearLayout>
