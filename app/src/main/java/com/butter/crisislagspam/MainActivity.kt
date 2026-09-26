@@ -1,175 +1,111 @@
 package com.butter.crisislagspam
 
-import android.app.Notification
-import android.app.NotificationChannel
-import android.app.NotificationManager
 import android.content.Intent
+import android.net.Uri
 import android.net.VpnService
 import android.os.Build
-import android.os.ParcelFileDescriptor
-import androidx.core.app.NotificationCompat
-import java.io.FileInputStream
-import java.io.FileOutputStream
-import kotlin.concurrent.thread
-import kotlin.random.Random
+import android.os.Bundle
+import android.provider.Settings
+import android.widget.Button
+import android.widget.TextView
+import android.widget.Toast
+import androidx.appcompat.app.AppCompatActivity
+import androidx.core.content.ContextCompat
 
-class LagVpnService : VpnService() {
+class MainActivity : AppCompatActivity() {
 
-    private var vpnInterface: ParcelFileDescriptor? = null
-    @Volatile private var running = false
-    @Volatile private var enabled = true
+    private lateinit var statusText: TextView
+    private val OVERLAY_REQ = 101
+    private val VPN_REQ = 102
 
-    // BURST PATTERN CONFIG
-    @Volatile var burstDelayMs: Long = 300L
-    private val BURST_DURATION_MS = 800L
-    private val NORMAL_DURATION_MS = 500L
-    private val JITTER_MS = 80L
+    override fun onCreate(savedInstanceState: Bundle?) {
+        super.onCreate(savedInstanceState)
+        setContentView(R.layout.activity_main)
 
-    // TCP HEARTBEAT PASSTHROUGH (berdasarkan analisis pcap)
-    // Heartbeat = 40 byte, jadi <= 60 byte lolos
-    // Paket posisi = 344 byte, jadi >= 100 byte di-delay
-    private val HEARTBEAT_MAX = 60
-    private val POSITION_MIN = 100
-    private val POSITION_MAX = 2000
+        statusText = findViewById(R.id.statusText)
 
-    companion object {
-        const val ACTION_START = "com.butter.crisislagspam.START"
-        const val ACTION_STOP = "com.butter.crisislagspam.STOP"
-        const val ACTION_SET_DELAY = "com.butter.crisislagspam.SET_DELAY"
-        const val EXTRA_DELAY_MS = "delay_ms"
-        const val CHANNEL_ID = "crisis_lag_spam"
-        const val NOTIF_ID = 1
+        findViewById<Button>(R.id.btnOverlayPerm).setOnClickListener { requestOverlay() }
+        findViewById<Button>(R.id.btnVpnPerm).setOnClickListener { requestVpn() }
+        findViewById<Button>(R.id.btnShowOverlay).setOnClickListener { startOverlay() }
+        findViewById<Button>(R.id.btnLaunchGame).setOnClickListener { launchGame() }
 
-        @Volatile var instance: LagVpnService? = null
+        refreshStatus()
     }
 
-    override fun onCreate() {
-        super.onCreate()
-        instance = this
+    override fun onResume() {
+        super.onResume()
+        refreshStatus()
     }
 
-    override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
-        when (intent?.action) {
-            ACTION_STOP -> {
-                stopVpn()
-                return START_NOT_STICKY
-            }
-            ACTION_SET_DELAY -> {
-                val d = intent.getLongExtra(EXTRA_DELAY_MS, 300L)
-                burstDelayMs = d.coerceIn(150L, 800L)
-                return START_STICKY
-            }
-            else -> {
-                if (!running) {
-                    startForegroundNotification()
-                    startVpn()
-                }
-            }
+    private fun requestOverlay() {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M && !Settings.canDrawOverlays(this)) {
+            val i = Intent(
+                Settings.ACTION_MANAGE_OVERLAY_PERMISSION,
+                Uri.parse("package:$packageName")
+            )
+            startActivityForResult(i, OVERLAY_REQ)
+        } else {
+            Toast.makeText(this, "Overlay already granted", Toast.LENGTH_SHORT).show()
         }
-        return START_STICKY
     }
 
-    private fun startForegroundNotification() {
+    private fun requestVpn() {
+        val intent = VpnService.prepare(this)
+        if (intent != null) {
+            startActivityForResult(intent, VPN_REQ)
+        } else {
+            Toast.makeText(this, "VPN already granted", Toast.LENGTH_SHORT).show()
+        }
+    }
+
+    private fun startOverlay() {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M && !Settings.canDrawOverlays(this)) {
+            Toast.makeText(this, "Grant overlay first", Toast.LENGTH_SHORT).show()
+            return
+        }
+        val vpnPrep = VpnService.prepare(this)
+        if (vpnPrep != null) {
+            Toast.makeText(this, "Grant VPN first", Toast.LENGTH_SHORT).show()
+            return
+        }
+        val i = Intent(this, OverlayService::class.java)
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-            val nm = getSystemService(NotificationManager::class.java)
-            if (nm.getNotificationChannel(CHANNEL_ID) == null) {
-                nm.createNotificationChannel(
-                    NotificationChannel(
-                        CHANNEL_ID, "Crisis Lag Spam",
-                        NotificationManager.IMPORTANCE_LOW
+            ContextCompat.startForegroundService(this, i)
+        } else {
+            startService(i)
+        }
+        Toast.makeText(this, "Overlay shown", Toast.LENGTH_SHORT).show()
+    }
+
+    private fun launchGame() {
+        val pkg = "com.herogames.gplay.crisisactionsa"
+        val i = packageManager.getLaunchIntentForPackage(pkg)
+        if (i != null) {
+            startActivity(i)
+        } else {
+            Toast.makeText(this, "Crisis Action SEA not installed", Toast.LENGTH_LONG).show()
+            try {
+                startActivity(Intent(Intent.ACTION_VIEW, Uri.parse("market://details?id=$pkg")))
+            } catch (_: Exception) {
+                startActivity(
+                    Intent(
+                        Intent.ACTION_VIEW,
+                        Uri.parse("https://play.google.com/store/apps/details?id=$pkg")
                     )
                 )
             }
         }
-        val notif: Notification = NotificationCompat.Builder(this, CHANNEL_ID)
-            .setContentTitle("Crisis Lag Spam")
-            .setContentText("TCP lag filter active")
-            .setSmallIcon(android.R.drawable.ic_menu_compass)
-            .setOngoing(true)
-            .build()
-        startForeground(NOTIF_ID, notif)
     }
 
-    private fun startVpn() {
-        val builder = Builder()
-        builder.setSession("CrisisLagSpam")
-        builder.addAddress("10.8.0.2", 32)
-        builder.addRoute("0.0.0.0", 0)
-        builder.addDnsServer("1.1.1.1")
-        builder.setBlocking(true)
-
-        vpnInterface = builder.establish() ?: run {
-            running = false
-            return
-        }
-        running = true
-
-        thread(name = "lag-loop") {
-            val fd = vpnInterface?.fileDescriptor ?: return@thread
-            val input = FileInputStream(fd)
-            val output = FileOutputStream(fd)
-            val buffer = ByteArray(32767)
-
-            var burstActive = true
-            var phaseSwitchAt = System.currentTimeMillis()
-
-            while (running) {
-                val now = System.currentTimeMillis()
-
-                if (burstActive && now - phaseSwitchAt >= BURST_DURATION_MS) {
-                    burstActive = false
-                    phaseSwitchAt = now
-                } else if (!burstActive && now - phaseSwitchAt >= NORMAL_DURATION_MS) {
-                    burstActive = true
-                    phaseSwitchAt = now
-                }
-
-                val len = try {
-                    input.read(buffer)
-                } catch (_: Exception) {
-                    -1
-                }
-                if (len <= 0) continue
-
-                // TCP HEARTBEAT PASSTHROUGH
-                // Paket 40-60 byte (heartbeat) lolos
-                // Paket 100-2000 byte (posisi/aksi) di-delay
-                // Paket > 2000 byte (download) lolos biar koneksi stabil
-                if (enabled && burstActive && len in POSITION_MIN..POSITION_MAX) {
-                    val d = burstDelayMs + Random.nextLong(-JITTER_MS, JITTER_MS + 1)
-                    if (d > 0) {
-                        try { Thread.sleep(d) } catch (_: InterruptedException) { }
-                    }
-                }
-
-                try {
-                    output.write(buffer, 0, len)
-                } catch (_: Exception) { }
-            }
-        }
+    private fun refreshStatus() {
+        val overlayOk = Build.VERSION.SDK_INT < Build.VERSION_CODES.M ||
+                Settings.canDrawOverlays(this)
+        val vpnOk = VpnService.prepare(this) == null
+        statusText.text = "Overlay: ${if (overlayOk) "OK" else "NO"} | VPN: ${if (vpnOk) "OK" else "NO"}"
     }
 
-    fun setEnabled(on: Boolean) {
-        enabled = on
-    }
-
-    private fun stopVpn() {
-        running = false
-        enabled = false
-        try { vpnInterface?.close() } catch (_: Exception) { }
-        vpnInterface = null
-        instance = null
-        stopForeground(true)
-        stopSelf()
-    }
-
-    override fun onRevoke() {
-        stopVpn()
-        super.onRevoke()
-    }
-
-    override fun onDestroy() {
-        stopVpn()
-        super.onDestroy()
+    override fun onActivityResult(requestCode: Int, resultCode: Int, data: Intent?) {
+        super.onActivityResult(requestCode, resultCode, data)
+        refreshStatus()
     }
 }
