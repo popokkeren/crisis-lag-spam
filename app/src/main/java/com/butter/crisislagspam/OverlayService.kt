@@ -76,8 +76,8 @@ class OverlayService : Service() {
         statusView = overlayView.findViewById(R.id.tvLagStatus)
         tvInterval = overlayView.findViewById(R.id.tvInterval)
         val seek = overlayView.findViewById<SeekBar>(R.id.seekInterval)
-        val minimize = overlayView.findViewById(R.id.tvMinimize)
-        val close = overlayView.findViewById(R.id.tvClose)
+        val minimize = overlayView.findViewById<TextView>(R.id.tvMinimize)
+val close = overlayView.findViewById<TextView>(R.id.tvClose)
 
         statusView.setOnClickListener {
             spamOn = !spamOn
