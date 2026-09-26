@@ -32,6 +32,12 @@ class MainActivity : AppCompatActivity() {
         refreshStatus()
     }
 
+    // FIX: refresh status setiap balik ke activity (dari Settings, VPN dialog, dll)
+    override fun onResume() {
+        super.onResume()
+        refreshStatus()
+    }
+
     private fun requestOverlay() {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M && !Settings.canDrawOverlays(this)) {
             val i = Intent(
@@ -41,7 +47,6 @@ class MainActivity : AppCompatActivity() {
             startActivityForResult(i, OVERLAY_REQ)
         } else {
             Toast.makeText(this, "Overlay already granted", Toast.LENGTH_SHORT).show()
-            refreshStatus()
         }
     }
 
@@ -51,7 +56,6 @@ class MainActivity : AppCompatActivity() {
             startActivityForResult(intent, VPN_REQ)
         } else {
             Toast.makeText(this, "VPN already granted", Toast.LENGTH_SHORT).show()
-            refreshStatus()
         }
     }
 
@@ -65,7 +69,8 @@ class MainActivity : AppCompatActivity() {
             Toast.makeText(this, "Grant VPN first", Toast.LENGTH_SHORT).show()
             return
         }
-        // JANGAN start VPN di sini — VPN start pas spam ON aja
+        // FIX: overlay service TIDAK start VPN. VPN cuma disiapkan (prepare),
+        // di-start eksplisit dari tombol ON di overlay, SETELAH game di lobby.
         val i = Intent(this, OverlayService::class.java)
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
             ContextCompat.startForegroundService(this, i)
