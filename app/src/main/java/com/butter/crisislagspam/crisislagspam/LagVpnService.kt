@@ -24,8 +24,8 @@ class LagVpnService : VpnService() {
     private val NORMAL_DURATION_MS = 500L
     private val JITTER_MS = 80L
 
-    private val HEARTBEAT_MAX = 60
-    private val POSITION_MIN = 100
+    private val HEARTBEAT_MAX = 200
+    private val POSITION_MIN = 250
     private val POSITION_MAX = 2000
 
     companion object {
