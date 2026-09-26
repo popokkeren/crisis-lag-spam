@@ -65,15 +65,7 @@ class MainActivity : AppCompatActivity() {
             Toast.makeText(this, "Grant VPN first", Toast.LENGTH_SHORT).show()
             return
         }
-        val vpnIntent = Intent(this, LagSpamVpnService::class.java).apply {
-            action = LagSpamVpnService.ACTION_START
-        }
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-            ContextCompat.startForegroundService(this, vpnIntent)
-        } else {
-            startService(vpnIntent)
-        }
-
+        // JANGAN start VPN di sini — VPN start pas spam ON aja
         val i = Intent(this, OverlayService::class.java)
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
             ContextCompat.startForegroundService(this, i)
