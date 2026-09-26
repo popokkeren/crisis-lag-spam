@@ -1,0 +1,74 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="wrap_content"
+    android:layout_height="wrap_content"
+    android:orientation="vertical"
+    android:background="#DD0A0A0A"
+    android:padding="10dp">
+
+    <TextView
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="⚡ LAG SPAM"
+        android:textColor="#FFD54F"
+        android:textStyle="bold"
+        android:textSize="14sp"
+        android:gravity="center"/>
+
+    <TextView
+        android:id="@+id/tvLagStatus"
+        android:layout_width="140dp"
+        android:layout_height="44dp"
+        android:layout_marginTop="8dp"
+        android:gravity="center"
+        android:text="OFF"
+        android:textColor="#FFFFFF"
+        android:textStyle="bold"
+        android:textSize="15sp"
+        android:background="#FF2E7D32"/>
+
+    <TextView
+        android:id="@+id/tvInterval"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="8dp"
+        android:text="Interval (ms): 200"
+        android:textColor="#FFFFFF"
+        android:textSize="11sp"/>
+
+    <SeekBar
+        android:id="@+id/seekInterval"
+        android:layout_width="180dp"
+        android:layout_height="wrap_content"
+        android:max="450"
+        android:progress="150"/>
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="horizontal"
+        android:layout_marginTop="6dp">
+
+        <TextView
+            android:id="@+id/tvMinimize"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:text="MINIMIZE"
+            android:textColor="#64B5F6"
+            android:textSize="11sp"
+            android:gravity="center"/>
+
+        <TextView
+            android:id="@+id/tvClose"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:text="✕ CLOSE"
+            android:textColor="#FF8888"
+            android:textSize="11sp"
+            android:gravity="center"/>
+
+    </LinearLayout>
+
+</LinearLayout>
