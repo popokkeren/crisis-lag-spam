@@ -22,11 +22,7 @@ class LagSpamVpnService : VpnService() {
     private val spamExecutor = Executors.newSingleThreadExecutor()
     @Volatile private var running = false
     private val spamActive = AtomicBoolean(false)
-    private val intervalMs = AtomicInteger(500)
-    private var lastSpamTime = 0L
-    private var burstCount = 0
-    private val maxBurstPerWindow = 20
-    private val windowMs = 10_000L
+    private val intervalMs = AtomicInteger(80)
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
         when (intent?.action) {
@@ -37,7 +33,7 @@ class LagSpamVpnService : VpnService() {
                 if (newState) startSpamLoop()
             }
             ACTION_SET_INTERVAL -> {
-                val ms = intent.getIntExtra(EXTRA_INTERVAL, 500)
+                val ms = intent.getIntExtra(EXTRA_INTERVAL, 80)
                 intervalMs.set(ms)
             }
             ACTION_STOP -> stopVpn()
@@ -61,7 +57,7 @@ class LagSpamVpnService : VpnService() {
         }
         val notif = NotificationCompat.Builder(this, channelId)
             .setContentTitle("Crisis Lag Spam")
-            .setContentText("Persistent Lag Mode")
+            .setContentText("Ghost Mode active")
             .setSmallIcon(android.R.drawable.ic_menu_compass)
             .setOngoing(true)
             .build()
@@ -87,7 +83,7 @@ class LagSpamVpnService : VpnService() {
         running = true
 
         // Thread baca paket dari tun0
-        // PERSISTENT LAG: tahan 800ms, drop cuma 15% (biar ga disconnect)
+        // LAG TIPIS: delay 200ms + drop 5% — musuh susah hit, lo tetep konek
         executor.execute {
             val input = FileInputStream(vpnInterface!!.fileDescriptor)
             val outBuffer = ByteArray(32767)
@@ -97,11 +93,10 @@ class LagSpamVpnService : VpnService() {
                     if (length <= 0) continue
 
                     if (spamActive.get()) {
-                        // Delay 800ms — paket ditahan, server nunggu
-                        Thread.sleep(800)
-                        
-                        // Drop 15% aja — biar server ga flag "disconnect"
-                        if (Random.nextInt(100) < 15) continue
+                        // Delay 200ms — bikin posisi lo "stutter" di server
+                        Thread.sleep(200)
+                        // Drop 5% aja — biar server ga flag "disconnect"
+                        if (Random.nextInt(100) < 5) continue
                     }
                 } catch (e: Exception) {
                     break
@@ -115,29 +110,14 @@ class LagSpamVpnService : VpnService() {
         spamExecutor.execute {
             while (spamActive.get() && running) {
                 try {
-                    val now = System.currentTimeMillis()
-
-                    if (now - lastSpamTime > windowMs) {
-                        lastSpamTime = now
-                        burstCount = 0
-                    }
-
-                    if (burstCount >= maxBurstPerWindow) {
-                        Thread.sleep(1000)
-                        continue
-                    }
-
-                    val burst = Random.nextInt(8, 20)
+                    val burst = Random.nextInt(3, 8)
                     for (i in 0 until burst) {
                         spamServer()
                     }
-                    burstCount++
-
                     val baseInterval = intervalMs.get()
-                    val jitter = Random.nextInt(-100, 100)
-                    val actualInterval = (baseInterval + jitter).coerceAtLeast(200)
+                    val jitter = Random.nextInt(-20, 20)
+                    val actualInterval = (baseInterval + jitter).coerceAtLeast(50)
                     Thread.sleep(actualInterval.toLong())
-
                 } catch (_: Exception) {}
             }
         }
@@ -147,23 +127,21 @@ class LagSpamVpnService : VpnService() {
         try {
             val socket = DatagramSocket()
             socket.broadcast = true
-            val size = Random.nextInt(512, 2048)
+            val size = Random.nextInt(256, 1024)
             val junk = ByteArray(size) { (it % 256).toByte() }
 
             val allTargets = listOf(
-                "8.8.8.8", "1.1.1.1", "8.8.4.4", "1.0.0.1",
-                "203.0.113.1", "198.51.100.1", "192.0.2.1",
-                "10.8.0.1"
+                "8.8.8.8", "1.1.1.1", "8.8.4.4", "1.0.0.1"
             )
             val targets = allTargets.shuffled(java.util.Random())
-                .take(Random.nextInt(3, 7))
+                .take(Random.nextInt(2, 4))
 
             for (ip in targets) {
                 try {
                     val addr = InetAddress.getByName(ip)
-                    val allPorts = listOf(80, 443, 8080, 53, 123, 9000)
+                    val allPorts = listOf(80, 443, 53)
                     val ports = allPorts.shuffled(java.util.Random())
-                        .take(Random.nextInt(2, 5))
+                        .take(Random.nextInt(1, 3))
                     for (port in ports) {
                         val packet = DatagramPacket(junk, junk.size, addr, port)
                         socket.send(packet)
