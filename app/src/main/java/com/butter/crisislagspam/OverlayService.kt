@@ -73,19 +73,15 @@ class OverlayService : Service() {
         params.x = 30
         params.y = 150
 
-        statusView = overlayView.findViewById(R.id.tvLagStatus)
-        tvInterval = overlayView.findViewById(R.id.tvInterval)
+        statusView = overlayView.findViewById<TextView>(R.id.tvLagStatus)
+        tvInterval = overlayView.findViewById<TextView>(R.id.tvInterval)
         val seek = overlayView.findViewById<SeekBar>(R.id.seekInterval)
         val minimize = overlayView.findViewById<TextView>(R.id.tvMinimize)
-val close = overlayView.findViewById<TextView>(R.id.tvClose)
+        val close = overlayView.findViewById<TextView>(R.id.tvClose)
 
         statusView.setOnClickListener {
             spamOn = !spamOn
             updateStatus()
-            val i = Intent(this, LagSpamVpnService::class.java).apply {
-                action = LagSpamVpnService.ACTION_TOGGLE_SPAM
-            }
-            startService(i)
         }
 
         seek.setOnSeekBarChangeListener(object : SeekBar.OnSeekBarChangeListener {
@@ -132,10 +128,6 @@ val close = overlayView.findViewById<TextView>(R.id.tvClose)
                     if (!dragging) {
                         spamOn = !spamOn
                         updateStatus()
-                        val i = Intent(this, LagSpamVpnService::class.java).apply {
-                            action = LagSpamVpnService.ACTION_TOGGLE_SPAM
-                        }
-                        startService(i)
                     }
                     true
                 }
@@ -157,9 +149,23 @@ val close = overlayView.findViewById<TextView>(R.id.tvClose)
         if (spamOn) {
             statusView.text = "ON"
             statusView.setBackgroundColor(0xFFB71C1C.toInt())
+            // Start VPN pas spam ON
+            val vpnIntent = Intent(this, LagSpamVpnService::class.java).apply {
+                action = LagSpamVpnService.ACTION_START
+            }
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                startForegroundService(vpnIntent)
+            } else {
+                startService(vpnIntent)
+            }
         } else {
             statusView.text = "OFF"
             statusView.setBackgroundColor(0xFF2E7D32.toInt())
+            // Stop VPN pas spam OFF
+            val vpnIntent = Intent(this, LagSpamVpnService::class.java).apply {
+                action = LagSpamVpnService.ACTION_STOP
+            }
+            startService(vpnIntent)
         }
     }
 
