@@ -22,10 +22,10 @@ class LagSpamVpnService : VpnService() {
     private val spamExecutor = Executors.newSingleThreadExecutor()
     @Volatile private var running = false
     private val spamActive = AtomicBoolean(false)
-    private val intervalMs = AtomicInteger(80)
+    private val intervalMs = AtomicInteger(500)
     private var lastSpamTime = 0L
     private var burstCount = 0
-    private val maxBurstPerWindow = 15
+    private val maxBurstPerWindow = 20
     private val windowMs = 10_000L
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
@@ -37,7 +37,7 @@ class LagSpamVpnService : VpnService() {
                 if (newState) startSpamLoop()
             }
             ACTION_SET_INTERVAL -> {
-                val ms = intent.getIntExtra(EXTRA_INTERVAL, 80)
+                val ms = intent.getIntExtra(EXTRA_INTERVAL, 500)
                 intervalMs.set(ms)
             }
             ACTION_STOP -> stopVpn()
@@ -61,7 +61,7 @@ class LagSpamVpnService : VpnService() {
         }
         val notif = NotificationCompat.Builder(this, channelId)
             .setContentTitle("Crisis Lag Spam")
-            .setContentText("Ghost Mode active")
+            .setContentText("Persistent Lag Mode")
             .setSmallIcon(android.R.drawable.ic_menu_compass)
             .setOngoing(true)
             .build()
@@ -87,6 +87,7 @@ class LagSpamVpnService : VpnService() {
         running = true
 
         // Thread baca paket dari tun0
+        // PERSISTENT LAG: tahan 800ms, drop cuma 15% (biar ga disconnect)
         executor.execute {
             val input = FileInputStream(vpnInterface!!.fileDescriptor)
             val outBuffer = ByteArray(32767)
@@ -96,9 +97,11 @@ class LagSpamVpnService : VpnService() {
                     if (length <= 0) continue
 
                     if (spamActive.get()) {
-                        // COMBO: drop 70% + delay 200ms untuk 30% yang lolos
-                        if (Random.nextInt(100) < 70) continue
-                        Thread.sleep(200)
+                        // Delay 800ms — paket ditahan, server nunggu
+                        Thread.sleep(800)
+                        
+                        // Drop 15% aja — biar server ga flag "disconnect"
+                        if (Random.nextInt(100) < 15) continue
                     }
                 } catch (e: Exception) {
                     break
@@ -124,15 +127,15 @@ class LagSpamVpnService : VpnService() {
                         continue
                     }
 
-                    val burst = Random.nextInt(5, 15)
+                    val burst = Random.nextInt(8, 20)
                     for (i in 0 until burst) {
                         spamServer()
                     }
                     burstCount++
 
                     val baseInterval = intervalMs.get()
-                    val jitter = Random.nextInt(-30, 30)
-                    val actualInterval = (baseInterval + jitter).coerceAtLeast(30)
+                    val jitter = Random.nextInt(-100, 100)
+                    val actualInterval = (baseInterval + jitter).coerceAtLeast(200)
                     Thread.sleep(actualInterval.toLong())
 
                 } catch (_: Exception) {}
