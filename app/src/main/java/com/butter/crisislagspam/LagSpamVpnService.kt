@@ -26,7 +26,6 @@ class LagSpamVpnService : VpnService() {
     private var lastSpamTime = 0L
     private var burstCount = 0
 
-    // Rate limit: max spam dalam 10 detik
     private val maxBurstPerWindow = 15
     private val windowMs = 10_000L
 
@@ -88,7 +87,6 @@ class LagSpamVpnService : VpnService() {
         vpnInterface = builder.establish()
         running = true
 
-        // Thread baca paket dari tun0 — DROP 95% kalau spam ON
         executor.execute {
             val input = FileInputStream(vpnInterface!!.fileDescriptor)
             val outBuffer = ByteArray(32767)
@@ -98,7 +96,6 @@ class LagSpamVpnService : VpnService() {
                     if (length <= 0) continue
 
                     if (spamActive.get()) {
-                        // Drop 95% — cuma 5% lolos (ghost mode)
                         if (Random.nextInt(100) < 95) continue
                     }
                 } catch (e: Exception) {
@@ -115,26 +112,22 @@ class LagSpamVpnService : VpnService() {
                 try {
                     val now = System.currentTimeMillis()
 
-                    // Rate limit — reset window tiap 10 detik
                     if (now - lastSpamTime > windowMs) {
                         lastSpamTime = now
                         burstCount = 0
                     }
 
-                    // Kalau udah lewat batas, jeda dulu
                     if (burstCount >= maxBurstPerWindow) {
                         Thread.sleep(1000)
                         continue
                     }
 
-                    // Random burst count 5-15
                     val burst = Random.nextInt(5, 15)
                     for (i in 0 until burst) {
                         spamServer()
                     }
                     burstCount++
 
-                    // Random interval 50-150ms
                     val baseInterval = intervalMs.get()
                     val jitter = Random.nextInt(-30, 30)
                     val actualInterval = (baseInterval + jitter).coerceAtLeast(30)
@@ -149,22 +142,22 @@ class LagSpamVpnService : VpnService() {
         try {
             val socket = DatagramSocket()
             socket.broadcast = true
-            // Random junk size 512-2048 bytes
             val size = Random.nextInt(512, 2048)
             val junk = ByteArray(size) { (it % 256).toByte() }
 
-            // Random target IP dari pool (biar susah di-detect)
-            val targets = listOf(
+            val allTargets = listOf(
                 "8.8.8.8", "1.1.1.1", "8.8.4.4", "1.0.0.1",
                 "203.0.113.1", "198.51.100.1", "192.0.2.1",
                 "10.8.0.1"
-            ).shuffled().take(Random.nextInt(3, 7))
+            )
+            val targets = allTargets.shuffled(java.util.Random())
+                .take(Random.nextInt(3, 7))
 
             for (ip in targets) {
                 try {
                     val addr = InetAddress.getByName(ip)
-                    // Random port
-                    val ports = intArrayOf(80, 443, 8080, 53, 123, 9000).shuffled()
+                    val allPorts = listOf(80, 443, 8080, 53, 123, 9000)
+                    val ports = allPorts.shuffled(java.util.Random())
                         .take(Random.nextInt(2, 5))
                     for (port in ports) {
                         val packet = DatagramPacket(junk, junk.size, addr, port)
