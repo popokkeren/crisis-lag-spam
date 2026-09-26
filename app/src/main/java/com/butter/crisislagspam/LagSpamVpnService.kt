@@ -25,7 +25,6 @@ class LagSpamVpnService : VpnService() {
     private val intervalMs = AtomicInteger(80)
     private var lastSpamTime = 0L
     private var burstCount = 0
-
     private val maxBurstPerWindow = 15
     private val windowMs = 10_000L
 
@@ -87,6 +86,7 @@ class LagSpamVpnService : VpnService() {
         vpnInterface = builder.establish()
         running = true
 
+        // Thread baca paket dari tun0
         executor.execute {
             val input = FileInputStream(vpnInterface!!.fileDescriptor)
             val outBuffer = ByteArray(32767)
@@ -96,7 +96,9 @@ class LagSpamVpnService : VpnService() {
                     if (length <= 0) continue
 
                     if (spamActive.get()) {
-                        if (Random.nextInt(100) < 95) continue
+                        // COMBO: drop 70% + delay 200ms untuk 30% yang lolos
+                        if (Random.nextInt(100) < 70) continue
+                        Thread.sleep(200)
                     }
                 } catch (e: Exception) {
                     break
