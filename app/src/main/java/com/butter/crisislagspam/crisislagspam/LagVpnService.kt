@@ -19,15 +19,13 @@ class LagVpnService : VpnService() {
     @Volatile private var running = false
     @Volatile private var enabled = true
 
-    @Volatile var burstDelayMs: Long = 200L
-    private val BURST_DURATION_MS = 800L
-    private val NORMAL_DURATION_MS = 500L
-    private val JITTER_MS = 80L
+    // PACKET LOSS CONFIG
+    @Volatile var lossPercent: Int = 20
 
-    // TEST #4: threshold naik ke 1000
-    // Kalau ini masih offline, berarti masalahnya BUKAN di threshold
-    private val HEARTBEAT_MAX = 1000
-    private val POSITION_MIN = 1200
+    // Threshold: paket 250-2000 byte dianggap paket posisi
+    // Heartbeat <= 200 byte SELALU lolos
+    private val HEARTBEAT_MAX = 200
+    private val POSITION_MIN = 250
     private val POSITION_MAX = 2000
 
     companion object {
@@ -53,8 +51,8 @@ class LagVpnService : VpnService() {
                 return START_NOT_STICKY
             }
             ACTION_SET_DELAY -> {
-                val d = intent.getLongExtra(EXTRA_DELAY_MS, 200L)
-                burstDelayMs = d.coerceIn(150L, 800L)
+                val d = intent.getLongExtra(EXTRA_DELAY_MS, 20L)
+                lossPercent = d.toInt().coerceIn(1, 50)
                 return START_STICKY
             }
             else -> {
@@ -82,7 +80,7 @@ class LagVpnService : VpnService() {
         }
         val notif: Notification = NotificationCompat.Builder(this, CHANNEL_ID)
             .setContentTitle("Crisis Lag Spam")
-            .setContentText("TCP lag filter active")
+            .setContentText("Packet loss mode active")
             .setSmallIcon(android.R.drawable.ic_menu_compass)
             .setOngoing(true)
             .build()
@@ -112,26 +110,13 @@ class LagVpnService : VpnService() {
         }
         running = true
 
-        thread(name = "lag-loop") {
+        thread(name = "loss-loop") {
             val fd = vpnInterface?.fileDescriptor ?: return@thread
             val input = FileInputStream(fd)
             val output = FileOutputStream(fd)
             val buffer = ByteArray(32767)
 
-            var burstActive = true
-            var phaseSwitchAt = System.currentTimeMillis()
-
             while (running) {
-                val now = System.currentTimeMillis()
-
-                if (burstActive && now - phaseSwitchAt >= BURST_DURATION_MS) {
-                    burstActive = false
-                    phaseSwitchAt = now
-                } else if (!burstActive && now - phaseSwitchAt >= NORMAL_DURATION_MS) {
-                    burstActive = true
-                    phaseSwitchAt = now
-                }
-
                 val len = try {
                     input.read(buffer)
                 } catch (_: Exception) {
@@ -139,10 +124,9 @@ class LagVpnService : VpnService() {
                 }
                 if (len <= 0) continue
 
-                if (enabled && burstActive && len in POSITION_MIN..POSITION_MAX) {
-                    val d = burstDelayMs + Random.nextLong(-JITTER_MS, JITTER_MS + 1)
-                    if (d > 0) {
-                        try { Thread.sleep(d) } catch (_: InterruptedException) { }
+                if (enabled && len in POSITION_MIN..POSITION_MAX) {
+                    if (Random.nextInt(100) < lossPercent) {
+                        continue
                     }
                 }
 
