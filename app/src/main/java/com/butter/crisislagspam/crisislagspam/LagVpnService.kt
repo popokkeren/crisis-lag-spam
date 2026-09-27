@@ -24,9 +24,10 @@ class LagVpnService : VpnService() {
     private val NORMAL_DURATION_MS = 500L
     private val JITTER_MS = 80L
 
-    // TEST #3: threshold naik ke 400
-    private val HEARTBEAT_MAX = 400
-    private val POSITION_MIN = 500
+    // TEST #4: threshold naik ke 1000
+    // Kalau ini masih offline, berarti masalahnya BUKAN di threshold
+    private val HEARTBEAT_MAX = 1000
+    private val POSITION_MIN = 1200
     private val POSITION_MAX = 2000
 
     companion object {
