@@ -19,12 +19,12 @@ class LagVpnService : VpnService() {
     @Volatile private var running = false
     @Volatile private var enabled = true
 
-    @Volatile var burstDelayMs: Long = 300L
+    @Volatile var burstDelayMs: Long = 200L
     private val BURST_DURATION_MS = 800L
     private val NORMAL_DURATION_MS = 500L
     private val JITTER_MS = 80L
 
-    // Updated threshold: heartbeat CA SEA lebih besar dari 200
+    // TEST #3: threshold naik ke 400
     private val HEARTBEAT_MAX = 400
     private val POSITION_MIN = 500
     private val POSITION_MAX = 2000
@@ -52,7 +52,7 @@ class LagVpnService : VpnService() {
                 return START_NOT_STICKY
             }
             ACTION_SET_DELAY -> {
-                val d = intent.getLongExtra(EXTRA_DELAY_MS, 300L)
+                val d = intent.getLongExtra(EXTRA_DELAY_MS, 200L)
                 burstDelayMs = d.coerceIn(150L, 800L)
                 return START_STICKY
             }
@@ -138,8 +138,6 @@ class LagVpnService : VpnService() {
                 }
                 if (len <= 0) continue
 
-                // Delay hanya paket ukuran POSITION_MIN..POSITION_MAX
-                // Paket <= HEARTBEAT_MAX lolos (heartbeat + kontrol)
                 if (enabled && burstActive && len in POSITION_MIN..POSITION_MAX) {
                     val d = burstDelayMs + Random.nextLong(-JITTER_MS, JITTER_MS + 1)
                     if (d > 0) {
