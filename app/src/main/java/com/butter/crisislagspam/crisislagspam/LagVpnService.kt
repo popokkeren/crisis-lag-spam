@@ -24,8 +24,9 @@ class LagVpnService : VpnService() {
     private val NORMAL_DURATION_MS = 500L
     private val JITTER_MS = 80L
 
-    private val HEARTBEAT_MAX = 200
-    private val POSITION_MIN = 250
+    // Updated threshold: heartbeat CA SEA lebih besar dari 200
+    private val HEARTBEAT_MAX = 400
+    private val POSITION_MIN = 500
     private val POSITION_MAX = 2000
 
     companion object {
@@ -137,6 +138,8 @@ class LagVpnService : VpnService() {
                 }
                 if (len <= 0) continue
 
+                // Delay hanya paket ukuran POSITION_MIN..POSITION_MAX
+                // Paket <= HEARTBEAT_MAX lolos (heartbeat + kontrol)
                 if (enabled && burstActive && len in POSITION_MIN..POSITION_MAX) {
                     val d = burstDelayMs + Random.nextLong(-JITTER_MS, JITTER_MS + 1)
                     if (d > 0) {
